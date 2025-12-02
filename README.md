@@ -8,6 +8,38 @@ bun add -g btca@latest
 btca ask -t svelte -q "How does the inspect rune work?"
 ```
 
+**out of the box this uses grok code from open code because it's free, but if you have opencode installed you can customize the model and provider in the config file at ~/.config/btca/btca.json**
+
+I recommend haiku 4.5...
+
+```json
+{
+  "promptsDirectory": "~/.config/btca/prompts",
+  "reposDirectory": "~/.config/btca/repos",
+  "port": 3420,
+  "maxInstances": 5,
+  "repos": [
+    {
+      "name": "svelte",
+      "url": "https://github.com/sveltejs/svelte.dev",
+      "branch": "main"
+    },
+    {
+      "name": "effect",
+      "url": "https://github.com/Effect-TS/effect",
+      "branch": "main"
+    },
+    {
+      "name": "nextjs",
+      "url": "https://github.com/vercel/next.js",
+      "branch": "canary"
+    }
+  ],
+  "model": "claude-haiku-4-5",
+  "provider": "anthropic"
+}
+```
+
 This is an evolution of: https://github.com/bmdavis419/opencode-hosted-docs-nonsense. Eventually I want to have this be the easiest way to pass in a piece of tech (ie. Svelte) and a question (ie. "How do remote functions work?") and get an up to date answer based on the latest version of the tech using the latest version of the docs/source code...
 
 **_this is all scratch work right now, I'll remove this once it's more ready to go_**

@@ -11,28 +11,6 @@ import { OcService, type OcEvent } from "./services/oc.ts";
 
 const programLayer = Layer.mergeAll(OcService.Default);
 
-type DisplayMessage = {
-  id: string;
-  text: string;
-};
-
-// TODO: setup really good outputs for the cli to give to agents...
-const logEvent = (event: OcEvent) => {
-  switch (event.type) {
-    case "message.updated":
-      // console.log(event.properties.info);
-      break;
-    case "message.part.updated":
-      if (event.properties.part.type === "text") {
-        // console.log(event.properties.part.text + "\n");
-        console.log(event.properties.delta + event.properties.part.messageID);
-      }
-      break;
-    default:
-      break;
-  }
-};
-
 // === Ask Subcommand ===
 const questionOption = Options.text("question").pipe(Options.withAlias("q"));
 const techOption = Options.text("tech").pipe(Options.withAlias("t"));
@@ -44,8 +22,6 @@ const askCommand = Command.make(
     Effect.gen(function* () {
       const oc = yield* OcService;
       const eventStream = yield* oc.askQuestion({ tech, question });
-
-      const displayMessages: DisplayMessage[] = [];
 
       let currentMessageId: string | null = null;
 
@@ -71,7 +47,6 @@ const askCommand = Command.make(
       );
 
       console.log("\n");
-      displayMessages.forEach((m) => console.log(m.text, "\n", m.id));
     }).pipe(Effect.provide(programLayer))
 );
 
@@ -108,17 +83,26 @@ const serveCommand = Command.make("serve", { port: portOption }, ({ port }) =>
           });
 
           const chunks: string[] = [];
+          let currentMessageId: string | null = null;
           yield* eventStream.pipe(
             Stream.runForEach((event) =>
               Effect.sync(() => {
-                if (event.type === "message.part.updated") {
-                  const part = event.properties.part as {
-                    type: string;
-                    text?: string;
-                  };
-                  if (part.type === "text" && part.text) {
-                    chunks.push(part.text);
-                  }
+                switch (event.type) {
+                  case "message.part.updated":
+                    if (event.properties.part.type === "text") {
+                      if (
+                        currentMessageId === event.properties.part.messageID
+                      ) {
+                        chunks[chunks.length - 1] +=
+                          event.properties.delta ?? "";
+                      } else {
+                        currentMessageId = event.properties.part.messageID;
+                        chunks.push(event.properties.part.text ?? "");
+                      }
+                    }
+                    break;
+                  default:
+                    break;
                 }
               })
             )
