@@ -9,10 +9,9 @@ import { BunHttpServer } from "@effect/platform-bun";
 import { Effect, Layer, Schema, Stream } from "effect";
 import { OcService, type OcEvent } from "./oc.ts";
 
-const packageJson = await Bun.file(
-  new URL("../../package.json", import.meta.url)
-).json();
-const VERSION: string = packageJson.version;
+declare const __VERSION__: string;
+const VERSION: string =
+  typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
 const programLayer = Layer.mergeAll(OcService.Default);
 

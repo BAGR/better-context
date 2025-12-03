@@ -1,5 +1,8 @@
 import { $ } from "bun";
 import { mkdir } from "node:fs/promises";
+import packageJson from "../package.json";
+
+const VERSION = packageJson.version;
 
 const targets = [
   "bun-darwin-arm64",
@@ -19,8 +22,8 @@ await mkdir("dist", { recursive: true });
 
 for (const target of targets) {
   const outfile = `dist/${outputNames[target]}`;
-  console.log(`Building ${target} -> ${outfile}`);
-  await $`bun build src/index.ts --compile --target=${target} --outfile=${outfile}`;
+  console.log(`Building ${target} -> ${outfile} (v${VERSION})`);
+  await $`bun build src/index.ts --compile --target=${target} --outfile=${outfile} --define __VERSION__='"${VERSION}"'`;
 }
 
 console.log("Done building all targets");
