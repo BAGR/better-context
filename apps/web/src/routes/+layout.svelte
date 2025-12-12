@@ -1,13 +1,17 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import ogImage from '$lib/assets/og.png';
 	import { getInitialTheme, setTheme, type Theme } from '$lib/theme';
 	import { Bot, Github, Moon, Sun } from '@lucide/svelte';
+	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
 
 	let theme = $state<Theme>('dark');
+	const fullBleed = $derived($page.url.pathname === '/og');
+	const ogImageUrl = $derived(new URL(ogImage, $page.url).href);
 
 	const toggleTheme = () => {
 		theme = theme === 'dark' ? 'light' : 'dark';
@@ -23,7 +27,20 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>Better Context</title>
-	<meta name="description" content="btca: local-first CLI for asking questions about codebases." />
+	<meta name="description" content="btca: CLI for asking questions about codebases." />
+
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content="Better Context" />
+	<meta property="og:description" content="btca: CLI for asking questions about codebases." />
+	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:image" content={ogImageUrl} />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="Better Context" />
+	<meta name="twitter:description" content="btca: CLI for asking questions about codebases." />
+	<meta name="twitter:image" content={ogImageUrl} />
 </svelte:head>
 
 <div class="relative min-h-dvh overflow-hidden">
@@ -37,10 +54,9 @@
 			<a href="/" class="no-underline">
 				<div class="flex items-center gap-2">
 					<div
-						class="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-sm shadow-orange-500/20"
+						class="grid size-9 place-items-center rounded-xl bg-linear-to-br from-orange-500 to-orange-700 text-white shadow-sm shadow-orange-500/20"
 					>
-						<!-- <span class="text-sm font-semibold tracking-tight">btca</span> -->
-						<Bot />
+						<Bot size={18} strokeWidth={2.25} />
 					</div>
 					<div class="leading-tight">
 						<div class="text-sm font-semibold tracking-tight text-neutral-950 dark:text-neutral-50">
@@ -80,8 +96,14 @@
 		</div>
 	</header>
 
-	<main class="mx-auto max-w-5xl px-6 py-12">
-		{@render children()}
+	<main class="px-6 py-12">
+		{#if fullBleed}
+			{@render children()}
+		{:else}
+			<div class="mx-auto w-full max-w-5xl">
+				{@render children()}
+			</div>
+		{/if}
 	</main>
 
 	<footer class="border-t border-neutral-200/70 py-10 dark:border-neutral-800/70">
