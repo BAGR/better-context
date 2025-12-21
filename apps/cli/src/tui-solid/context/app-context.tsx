@@ -154,14 +154,14 @@ export const AppProvider = (props: { children: JSX.Element }) => {
 		cursorIsCurrentlyIn: () => {
 			let curIdx = 0;
 			let minIdx = 0;
-			while (true) {
+			while (curIdx < inputStore().length) {
 				const curItem = inputStore()[curIdx];
-				if (!curItem) return 'text';
 				const maxIdx = minIdx + curItem.content.length;
 				if (cursorPosition() >= minIdx && cursorPosition() <= maxIdx) return curItem.type;
 				minIdx = maxIdx;
 				curIdx++;
 			}
+			return 'text';
 		},
 		setInputState: setInputStore,
 
