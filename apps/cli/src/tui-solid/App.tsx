@@ -1,4 +1,5 @@
 import { createSignal, Show, type Component, type JSX } from 'solid-js';
+import type { ParentProps } from 'solid-js';
 import { AppProvider } from './context/app-context';
 import { render, useKeyboard, useRenderer } from '@opentui/solid';
 import { MainUi } from '.';
@@ -22,9 +23,7 @@ const parseAtMention = (
 	};
 };
 
-const AppWrapper: Component<{
-	children: JSX.Element;
-}> = (props) => {
+const AppWrapper: Component<ParentProps> = (props) => {
 	return <AppProvider>{props.children}</AppProvider>;
 };
 
@@ -46,7 +45,10 @@ const App: Component = () => {
 		if (!inputText) return;
 
 		// If showing palettes, let them handle the return key
-		if (appState.cursorIsCurrentlyIn() === 'command' || appState.cursorIsCurrentlyIn() === 'mention') {
+		if (
+			appState.cursorIsCurrentlyIn() === 'command' ||
+			appState.cursorIsCurrentlyIn() === 'mention'
+		) {
 			return;
 		}
 
@@ -61,7 +63,9 @@ const App: Component = () => {
 			return;
 		}
 
-		const targetRepo = appState.repos().find((r) => r.name.toLowerCase() === mention.repoQuery.toLowerCase());
+		const targetRepo = appState
+			.repos()
+			.find((r) => r.name.toLowerCase() === mention.repoQuery.toLowerCase());
 		if (!targetRepo) {
 			appState.addMessage({
 				role: 'system',
@@ -143,14 +147,21 @@ const App: Component = () => {
 		if (key.name === 'escape') {
 			if (appState.mode() !== 'chat' && appState.mode() !== 'loading') {
 				cancelMode();
-			} else if (appState.cursorIsCurrentlyIn() === 'command' || appState.cursorIsCurrentlyIn() === 'mention') {
+			} else if (
+				appState.cursorIsCurrentlyIn() === 'command' ||
+				appState.cursorIsCurrentlyIn() === 'mention'
+			) {
 				appState.setInputState([]);
 			}
 			return;
 		}
 
 		// Return key for chat submission (only in chat mode, not in palettes)
-		if (key.name === 'return' && appState.mode() === 'chat' && appState.cursorIsCurrentlyIn() === 'text') {
+		if (
+			key.name === 'return' &&
+			appState.mode() === 'chat' &&
+			appState.cursorIsCurrentlyIn() === 'text'
+		) {
 			handleChatSubmit();
 			return;
 		}

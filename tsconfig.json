@@ -3,7 +3,6 @@
     // Environment setup & latest features
     "lib": [
       "ESNext",
-      "DOM"
     ],
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",

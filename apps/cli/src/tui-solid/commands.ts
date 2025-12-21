@@ -17,16 +17,6 @@ export const COMMANDS: Command[] = [
 		mode: 'config-model'
 	},
 	{
-		name: 'chat',
-		description: 'Start chat session (opens OpenCode)',
-		mode: 'chat'
-	},
-	{
-		name: 'ask',
-		description: 'Ask question, copy answer to clipboard',
-		mode: 'ask'
-	},
-	{
 		name: 'clear',
 		description: 'Clear chat history',
 		mode: 'clear'

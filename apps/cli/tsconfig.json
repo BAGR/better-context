@@ -12,7 +12,6 @@
     // Environment setup & latest features
     "lib": [
       "ESNext",
-      "DOM"
     ],
     "target": "ESNext",
     "module": "esnext",

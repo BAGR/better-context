@@ -5,7 +5,8 @@ import {
 	onMount,
 	useContext,
 	type Accessor,
-	type JSX
+	type Component,
+	type ParentProps
 } from 'solid-js';
 import type { Mode, Repo, Message, InputState } from '../types.ts';
 import { services } from '../services.ts';
@@ -92,7 +93,7 @@ export const useAppContext = () => {
 	return context;
 };
 
-export const AppProvider = (props: { children: JSX.Element }) => {
+export const AppProvider: Component<ParentProps> = (props) => {
 	// Model config
 	const [selectedModel, setSelectedModel] = createSignal('');
 	const [selectedProvider, setSelectedProvider] = createSignal('');
