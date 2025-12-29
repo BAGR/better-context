@@ -8,6 +8,25 @@ export interface Repo {
 	searchPath?: string | undefined;
 }
 
+// Thread types for TUI state
+export type QuestionStatus = 'completed' | 'canceled';
+
+export interface ThreadQuestion {
+	id: string;
+	prompt: string;
+	answer: string;
+	resources: string[]; // resources added by THIS question only
+	status: QuestionStatus;
+}
+
+export interface ThreadState {
+	id: string;
+	resources: string[]; // accumulated resources across all questions
+	questions: ThreadQuestion[];
+}
+
+export type CancelState = 'none' | 'pending';
+
 export type InputState = (
 	| {
 			type: 'text' | 'command' | 'mention';
@@ -32,6 +51,7 @@ export type Message =
 	| {
 			role: 'assistant';
 			content: AssistantContent;
+			canceled?: boolean; // true if this response was canceled
 	  }
 	| {
 			role: 'system';
@@ -44,7 +64,8 @@ export type Mode =
 	| 'remove-repo'
 	| 'config-model'
 	| 'select-blessed-model'
-	| 'loading';
+	| 'loading'
+	| 'cancel-pending'; // ESC pressed once during loading, waiting for confirmation
 
 export type CommandMode =
 	| 'add-repo'

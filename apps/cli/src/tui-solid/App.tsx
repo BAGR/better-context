@@ -61,10 +61,22 @@ const App: Component = () => {
 		}
 
 		const parsed = parseAllMentions(inputText);
-		if (parsed.repos.length === 0 || !parsed.question.trim()) {
+		const thread = appState.currentThread();
+
+		// Validate: need resources either from input OR existing thread
+		if (parsed.repos.length === 0 && (!thread || thread.resources.length === 0)) {
 			appState.addMessage({
 				role: 'system',
-				content: 'Use @reponame followed by your question. Example: @svelte @effect How do I...?'
+				content: 'Use @reponame to add context. Example: @svelte How do I...?'
+			});
+			return;
+		}
+
+		// Check for empty question
+		if (!parsed.question.trim()) {
+			appState.addMessage({
+				role: 'system',
+				content: 'Please enter a question after the @mention.'
 			});
 			return;
 		}
@@ -91,38 +103,90 @@ const App: Component = () => {
 			return;
 		}
 
+		// Lazily initialize thread on first question
+		if (!thread) {
+			await appState.initializeThread();
+		}
+
+		// Add new resources to thread (accumulate)
+		if (validRepos.length > 0) {
+			appState.addResourcesToThread(validRepos);
+		}
+
+		// Get accumulated resources for API call
+		const currentThread = appState.currentThread()!;
+		const allResources = currentThread.resources;
+
+		// Build thread context from previous Q&A
+		const threadContext = services.buildThreadContext(currentThread.questions);
+
+		// Add user message to UI
 		appState.addMessage({
 			role: 'user',
 			content: appState.inputState()
 		});
+
+		// Add placeholder assistant message
 		appState.addMessage({
 			role: 'assistant',
 			content: { type: 'chunks', chunks: [] }
 		});
+
 		appState.setInputState([]);
 		appState.setIsLoading(true);
 		appState.setMode('loading');
+		appState.setCancelState('none');
+
+		// Add question to thread (with empty answer initially)
+		await appState.addQuestionToThread({
+			prompt: parsed.question,
+			answer: '',
+			resources: validRepos, // only NEW resources added by this question
+			status: 'completed'
+		});
 
 		try {
-			const finalChunks = await services.askQuestion(validRepos, parsed.question, (update) => {
-				if (update.type === 'add') {
-					appState.addChunkToLastAssistant(update.chunk);
-				} else {
-					appState.updateChunkInLastAssistant(update.id, update.chunk);
-				}
-			});
+			const finalChunks = await services.askQuestion(
+				allResources,
+				parsed.question,
+				(update) => {
+					if (update.type === 'add') {
+						appState.addChunkToLastAssistant(update.chunk);
+					} else {
+						appState.updateChunkInLastAssistant(update.id, update.chunk);
+					}
+				},
+				threadContext
+			);
 
+			// Check if canceled during streaming
+			if (appState.cancelState() === 'pending' || appState.mode() === 'cancel-pending') {
+				// Already handled in cancel flow
+				return;
+			}
+
+			// Gather final answer text
 			const textChunks = finalChunks.filter((c) => c.type === 'text');
 			const fullResponse = textChunks.map((c) => c.text).join('\n\n');
+
+			// Update question with final answer
+			await appState.updateLastQuestionAnswer(fullResponse);
+
 			if (fullResponse) {
 				await copyToClipboard(fullResponse);
 				appState.addMessage({ role: 'system', content: 'Answer copied to clipboard!' });
 			}
 		} catch (error) {
-			appState.addMessage({ role: 'system', content: `Error: ${error}` });
+			// Check if this was a cancellation
+			if (appState.cancelState() === 'pending' || appState.mode() === 'cancel-pending') {
+				// Already handled in cancel flow
+			} else {
+				appState.addMessage({ role: 'system', content: `Error: ${error}` });
+			}
 		} finally {
 			appState.setIsLoading(false);
 			appState.setMode('chat');
+			appState.setCancelState('none');
 		}
 	};
 
@@ -166,7 +230,40 @@ const App: Component = () => {
 
 		// Escape handling for modes
 		if (key.name === 'escape') {
-			if (appState.mode() !== 'chat' && appState.mode() !== 'loading') {
+			const mode = appState.mode();
+
+			// Cancel flow during loading
+			if (mode === 'loading') {
+				if (appState.cancelState() === 'none') {
+					// First ESC - enter pending state
+					appState.setCancelState('pending');
+				} else {
+					// Second ESC - confirm cancel
+					(async () => {
+						appState.setCancelState('none');
+						appState.setMode('cancel-pending');
+
+						// Cancel the request (kills OpenCode server)
+						await services.cancelCurrentRequest();
+
+						// Mark question as canceled with partial answer
+						await appState.markLastQuestionCanceled();
+
+						// Mark last assistant message as canceled
+						appState.markLastAssistantMessageCanceled();
+
+						// Add system message
+						appState.addMessage({ role: 'system', content: 'Request canceled.' });
+
+						appState.setMode('chat');
+						appState.setIsLoading(false);
+					})();
+				}
+				return;
+			}
+
+			// Handle other non-chat modes
+			if (mode !== 'chat' && mode !== 'cancel-pending') {
 				cancelMode();
 			} else if (
 				appState.cursorIsCurrentlyIn() === 'command' ||

@@ -21,7 +21,7 @@ export interface ThreadRepository {
 	) => Effect.Effect<Question, ThreadRepositoryError>;
 	updateQuestion: (
 		questionId: string,
-		updates: Partial<Pick<Question, 'answer' | 'metadata'>>
+		updates: Partial<Pick<Question, 'answer' | 'metadata' | 'status'>>
 	) => Effect.Effect<void, ThreadRepositoryError>;
 }
 
@@ -91,6 +91,7 @@ export const createThreadRepository = (
 									model: q.model,
 									prompt: q.prompt,
 									answer: q.answer,
+									status: (q.status as 'completed' | 'canceled') ?? 'completed',
 									metadata: q.metadata,
 									createdAt: q.createdAt,
 									order: q.order
@@ -156,6 +157,7 @@ export const createThreadRepository = (
 									model: question.model,
 									prompt: question.prompt,
 									answer: question.answer,
+									status: question.status ?? 'completed',
 									metadata: question.metadata,
 									createdAt: now,
 									order: question.order
@@ -180,7 +182,7 @@ export const createThreadRepository = (
 
 				updateQuestion: (
 					questionId: string,
-					updates: Partial<Pick<Question, 'answer' | 'metadata'>>
+					updates: Partial<Pick<Question, 'answer' | 'metadata' | 'status'>>
 				) =>
 					Effect.try({
 						try: () => {

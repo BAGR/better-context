@@ -115,15 +115,33 @@ const ChunkRenderer: Component<{ chunk: BtcaChunk; isStreaming: boolean }> = (pr
 const AssistantMessage: Component<{
 	content: AssistantContent;
 	isStreaming: boolean;
+	isCanceled?: boolean;
 }> = (props) => {
+	const textColor = () => (props.isCanceled ? colors.textMuted : undefined);
+
 	return (
 		<Switch>
 			<Match when={props.content.type === 'text'}>
 				<Show
 					when={!props.isStreaming}
-					fallback={<text>{(props.content as { type: 'text'; content: string }).content}</text>}
+					fallback={
+						<text fg={textColor()}>
+							{(props.content as { type: 'text'; content: string }).content}
+						</text>
+					}
 				>
-					<MarkdownText content={(props.content as { type: 'text'; content: string }).content} />
+					<Show
+						when={props.isCanceled}
+						fallback={
+							<MarkdownText
+								content={(props.content as { type: 'text'; content: string }).content}
+							/>
+						}
+					>
+						<text fg={textColor()}>
+							{(props.content as { type: 'text'; content: string }).content}
+						</text>
+					</Show>
 				</Show>
 			</Match>
 			<Match when={props.content.type === 'chunks'}>
@@ -134,13 +152,48 @@ const AssistantMessage: Component<{
 								idx() ===
 								(props.content as { type: 'chunks'; chunks: BtcaChunk[] }).chunks.length - 1;
 							return (
-								<ChunkRenderer chunk={chunk} isStreaming={props.isStreaming && isLastChunk()} />
+								<Show
+									when={props.isCanceled && chunk.type === 'text'}
+									fallback={
+										<ChunkRenderer chunk={chunk} isStreaming={props.isStreaming && isLastChunk()} />
+									}
+								>
+									<text fg={textColor()}>{(chunk as { text: string }).text}</text>
+								</Show>
 							);
 						}}
 					</For>
 				</box>
 			</Match>
 		</Switch>
+	);
+};
+
+// Thread resources overlay component
+const ThreadResourcesOverlay: Component = () => {
+	const appState = useAppContext();
+	const thread = () => appState.currentThread();
+
+	return (
+		<Show when={thread() && thread()!.resources.length > 0}>
+			<box
+				style={{
+					position: 'absolute',
+					top: 0,
+					right: 1,
+					zIndex: 10,
+					paddingLeft: 1,
+					paddingRight: 1,
+					backgroundColor: colors.bg
+				}}
+			>
+				<text fg={colors.textMuted}>
+					{thread()!
+						.resources.map((r) => `@${r}`)
+						.join(' ')}
+				</text>
+			</box>
+		</Show>
 	);
 };
 
@@ -164,6 +217,9 @@ export const Messages: Component = () => {
 				stickyStart: 'bottom'
 			}}
 		>
+			{/* Thread resources overlay - shows @resources in top right */}
+			<ThreadResourcesOverlay />
+
 			<For each={appState.messageHistory()}>
 				{(m, index) => {
 					if (m.role === 'user') {
@@ -197,16 +253,23 @@ export const Messages: Component = () => {
 							return false;
 						};
 						const isStreaming = () => appState.mode() === 'loading' && isLastAssistant();
+						const isCanceled = () => m.canceled === true;
 
 						return (
 							<box style={{ flexDirection: 'column', gap: 1 }}>
 								<box style={{ flexDirection: 'row' }}>
-									<text fg={colors.success}>AI </text>
+									<text fg={isCanceled() ? colors.textMuted : colors.success}>
+										{isCanceled() ? 'AI [canceled] ' : 'AI '}
+									</text>
 									<Show when={isStreaming()}>
 										<LoadingSpinner />
 									</Show>
 								</box>
-								<AssistantMessage content={m.content} isStreaming={isStreaming()} />
+								<AssistantMessage
+									content={m.content}
+									isStreaming={isStreaming()}
+									isCanceled={isCanceled()}
+								/>
 							</box>
 						);
 					}

@@ -10,7 +10,7 @@ import {
 	type BtcaChunk
 } from '../core/index.ts';
 import { isGitResource, type GitResource } from '../core/resource/types.ts';
-import type { Repo } from './types.ts';
+import type { Repo, ThreadQuestion, QuestionStatus } from './types.ts';
 
 // Create a managed runtime with BunContext
 const runtime = ManagedRuntime.make(BunContext.layer);
@@ -27,6 +27,9 @@ const getServices = async (): Promise<CoreServices> => {
 // Session state for persistent chat
 let currentSession: SessionState | null = null;
 let currentSessionResources: string[] = [];
+
+// Track current server for cancellation
+let currentServer: { close: () => void } | null = null;
 
 /**
  * Convert ResourceDefinition to legacy Repo type for TUI compatibility
@@ -167,11 +170,13 @@ export const services = {
 
 	/**
 	 * Single-shot question across multiple resources (creates and destroys session)
+	 * @param threadContext - Optional conversation history to pass to the agent
 	 */
 	askQuestion: async (
 		resourceNames: string[],
 		question: string,
-		onChunkUpdate: (update: ChunkUpdate) => void
+		onChunkUpdate: (update: ChunkUpdate) => void,
+		threadContext?: string
 	): Promise<BtcaChunk[]> => {
 		const core = await getServices();
 		return Effect.runPromise(
@@ -181,7 +186,8 @@ export const services = {
 				const eventStream = yield* core.agent.ask({
 					collection,
 					resources: resourceInfos,
-					question
+					question,
+					threadContext
 				});
 				const { stream: chunkStream, getChunks } = streamToChunks(eventStream);
 				yield* Stream.runForEach(chunkStream, (update) => Effect.sync(() => onChunkUpdate(update)));
@@ -199,6 +205,102 @@ export const services = {
 		onChunkUpdate: (update: ChunkUpdate) => void
 	): Promise<BtcaChunk[]> => {
 		return services.askQuestion([tech], question, onChunkUpdate);
+	},
+
+	// ===== Thread Management =====
+
+	/**
+	 * Create a new thread and return its ID
+	 */
+	createThread: async (): Promise<string> => {
+		const core = await getServices();
+		const thread = await runtime.runPromise(core.threads.create());
+		return thread.id;
+	},
+
+	/**
+	 * Persist a question to a thread
+	 * @returns The question ID
+	 */
+	persistQuestion: async (
+		threadId: string,
+		question: {
+			resources: string[];
+			prompt: string;
+			answer: string;
+			status: QuestionStatus;
+		}
+	): Promise<string> => {
+		const core = await getServices();
+		const modelConfig = await runtime.runPromise(core.config.getModel());
+		const q = await runtime.runPromise(
+			core.threads.appendQuestion(threadId, {
+				resources: question.resources,
+				provider: modelConfig.provider,
+				model: modelConfig.model,
+				prompt: question.prompt,
+				answer: question.answer,
+				status: question.status,
+				metadata: {
+					filesRead: [],
+					searchesPerformed: [],
+					tokenUsage: { input: 0, output: 0 },
+					durationMs: 0
+				}
+			})
+		);
+		return q.id;
+	},
+
+	/**
+	 * Update a question's answer
+	 */
+	updateQuestionAnswer: async (questionId: string, answer: string): Promise<void> => {
+		const core = await getServices();
+		await runtime.runPromise(core.threads.updateQuestion(questionId, { answer }));
+	},
+
+	/**
+	 * Update a question's status (e.g., to 'canceled')
+	 */
+	updateQuestionStatus: async (questionId: string, status: QuestionStatus): Promise<void> => {
+		const core = await getServices();
+		await runtime.runPromise(core.threads.updateQuestion(questionId, { status }));
+	},
+
+	/**
+	 * Build thread context from question history for passing to the agent
+	 */
+	buildThreadContext: (questions: ThreadQuestion[]): string => {
+		if (questions.length === 0) return '';
+
+		const history = questions
+			.map((q, i) => {
+				const statusNote = q.status === 'canceled' ? ' - CANCELED' : '';
+				return `[Q${i + 1}] ${q.prompt}\n[A${i + 1}${statusNote}] ${q.answer}`;
+			})
+			.join('\n\n');
+
+		return `=== CONVERSATION HISTORY ===\n${history}\n=== END HISTORY ===`;
+	},
+
+	// ===== Cancel Support =====
+
+	/**
+	 * Set the current server reference (for cancellation)
+	 */
+	setCurrentServer: (server: { close: () => void } | null): void => {
+		currentServer = server;
+	},
+
+	/**
+	 * Cancel the current request by closing the server
+	 */
+	cancelCurrentRequest: async (): Promise<void> => {
+		if (currentServer) {
+			currentServer.close();
+			currentServer = null;
+		}
 	}
 };
 

@@ -89,7 +89,13 @@ export type { ThreadService } from './thread/service.ts';
 export type { AgentService } from './agent/service.ts';
 export type { ResourceDefinition, ResourceInfo } from './resource/types.ts';
 export type { CollectionInfo } from './collection/types.ts';
-export type { Thread, Question, QuestionMetadata, ThreadSummary } from './thread/types.ts';
+export type {
+	Thread,
+	Question,
+	QuestionMetadata,
+	ThreadSummary,
+	QuestionStatus
+} from './thread/types.ts';
 export type { SessionState, AgentMetadata, BtcaChunk } from './agent/types.ts';
 
 // Re-export errors

@@ -22,6 +22,24 @@ export const MainInput: Component = () => {
 
 	const isEmpty = () => getValue().length === 0;
 
+	// Get dynamic placeholder based on current state
+	const getPlaceholder = () => {
+		const mode = appState.mode();
+		const cancelStateVal = appState.cancelState();
+		const thread = appState.currentThread();
+
+		if (mode === 'loading' && cancelStateVal === 'pending') {
+			return 'confirm with esc to cancel';
+		}
+		if (mode === 'loading') {
+			return 'press esc to cancel';
+		}
+		if (thread && thread.resources.length > 0) {
+			return 'ask a follow-up... or @repo to add context';
+		}
+		return '@repo question... or / for commands';
+	};
+
 	const getPartValueLength = (p: ReturnType<typeof appState.inputState>[number]) =>
 		p.type === 'pasted' ? getPasteDisplay(p.lines).length : p.content.length;
 
@@ -238,9 +256,7 @@ export const MainInput: Component = () => {
 			>
 				<Show
 					when={!isEmpty()}
-					fallback={
-						<span style={{ fg: colors.textSubtle }}>@repo question... or / for commands</span>
-					}
+					fallback={<span style={{ fg: colors.textSubtle }}>{getPlaceholder()}</span>}
 				>
 					<For each={appState.inputState()}>
 						{(part) => {

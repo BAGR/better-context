@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS "questions" (
 	"model" text NOT NULL,
 	"prompt" text NOT NULL,
 	"answer" text NOT NULL,
+	"status" text DEFAULT 'completed' NOT NULL,
 	"metadata" text NOT NULL,
 	"created_at" integer NOT NULL,
 	"order" integer NOT NULL,

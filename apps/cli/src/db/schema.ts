@@ -19,6 +19,7 @@ export const questions = sqliteTable(
 		model: text('model').notNull(),
 		prompt: text('prompt').notNull(),
 		answer: text('answer').notNull(),
+		status: text('status').notNull().default('completed'), // 'completed' | 'canceled'
 		metadata: text('metadata', { mode: 'json' }).notNull().$type<QuestionMetadata>(),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 		order: integer('order').notNull()

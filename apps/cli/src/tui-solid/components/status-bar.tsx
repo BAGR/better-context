@@ -13,7 +13,15 @@ export const StatusBar: Component = () => {
 		const cursorIn = appState.cursorIsCurrentlyIn();
 
 		if (mode === 'loading') {
-			return ' Streaming response...';
+			const cancelStateVal = appState.cancelState();
+			if (cancelStateVal === 'pending') {
+				return ' Press [Esc] again to confirm cancel';
+			}
+			return ' Streaming... [Esc] to cancel';
+		}
+
+		if (mode === 'cancel-pending') {
+			return ' Canceling...';
 		}
 
 		if (mode === 'add-repo') {

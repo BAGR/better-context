@@ -8,9 +8,18 @@ import {
 	type Component,
 	type ParentProps
 } from 'solid-js';
-import type { Mode, Repo, Message, InputState } from '../types.ts';
+import type {
+	Mode,
+	Repo,
+	Message,
+	InputState,
+	ThreadState,
+	ThreadQuestion,
+	CancelState
+} from '../types.ts';
 import type { BtcaChunk } from '../../core/index.ts';
 import { services } from '../services.ts';
+import { generateId } from '../../core/thread/types.ts';
 
 // TODO update the internal naming of "repo" to be "resource"
 
@@ -75,6 +84,23 @@ type AppState = {
 	// Remove repo state
 	removeRepoName: Accessor<string>;
 	setRemoveRepoName: (name: string) => void;
+
+	// Thread state
+	currentThread: Accessor<ThreadState | null>;
+	initializeThread: () => Promise<void>;
+	addResourcesToThread: (resources: string[]) => void;
+	addQuestionToThread: (question: Omit<ThreadQuestion, 'id'>) => Promise<string>;
+	updateLastQuestionAnswer: (answer: string) => Promise<void>;
+	markLastQuestionCanceled: () => Promise<void>;
+	lastQuestionId: Accessor<string | null>;
+	setLastQuestionId: (id: string | null) => void;
+
+	// Cancel state
+	cancelState: Accessor<CancelState>;
+	setCancelState: (state: CancelState) => void;
+
+	// Mark last assistant message as canceled
+	markLastAssistantMessageCanceled: () => void;
 };
 
 const defaultMessageHistory: Message[] = [
@@ -136,6 +162,13 @@ export const AppProvider: Component<ParentProps> = (props) => {
 
 	// Remove repo
 	const [removeRepoName, setRemoveRepoName] = createSignal('');
+
+	// Thread state
+	const [currentThread, setCurrentThread] = createSignal<ThreadState | null>(null);
+	const [lastQuestionId, setLastQuestionId] = createSignal<string | null>(null);
+
+	// Cancel state
+	const [cancelState, setCancelState] = createSignal<CancelState>('none');
 
 	// Load repos and model config on mount
 	onMount(() => {
@@ -278,7 +311,103 @@ export const AppProvider: Component<ParentProps> = (props) => {
 
 		// Remove repo
 		removeRepoName,
-		setRemoveRepoName
+		setRemoveRepoName,
+
+		// Thread state
+		currentThread,
+		lastQuestionId,
+		setLastQuestionId,
+
+		initializeThread: async () => {
+			if (currentThread()) return; // Already initialized
+			const threadId = await services.createThread();
+			setCurrentThread({
+				id: threadId,
+				resources: [],
+				questions: []
+			});
+		},
+
+		addResourcesToThread: (resources: string[]) => {
+			const thread = currentThread();
+			if (!thread) return;
+			const newResources = [...new Set([...thread.resources, ...resources])].sort();
+			setCurrentThread({ ...thread, resources: newResources });
+		},
+
+		addQuestionToThread: async (question: Omit<ThreadQuestion, 'id'>): Promise<string> => {
+			const thread = currentThread();
+			if (!thread) throw new Error('No thread initialized');
+
+			const id = generateId();
+			const newQuestion: ThreadQuestion = { ...question, id };
+
+			// Update in-memory state
+			setCurrentThread({
+				...thread,
+				questions: [...thread.questions, newQuestion]
+			});
+
+			// Persist to database
+			const questionId = await services.persistQuestion(thread.id, {
+				resources: question.resources,
+				prompt: question.prompt,
+				answer: question.answer,
+				status: question.status
+			});
+
+			setLastQuestionId(questionId);
+			return questionId;
+		},
+
+		updateLastQuestionAnswer: async (answer: string) => {
+			const thread = currentThread();
+			const qId = lastQuestionId();
+			if (!thread || !qId) return;
+
+			// Update in-memory state
+			const updatedQuestions = thread.questions.map((q, i) =>
+				i === thread.questions.length - 1 ? { ...q, answer } : q
+			);
+			setCurrentThread({ ...thread, questions: updatedQuestions });
+
+			// Persist to database
+			await services.updateQuestionAnswer(qId, answer);
+		},
+
+		markLastQuestionCanceled: async () => {
+			const thread = currentThread();
+			const qId = lastQuestionId();
+			if (!thread || !qId) return;
+
+			// Update in-memory state
+			const updatedQuestions = thread.questions.map((q, i) =>
+				i === thread.questions.length - 1 ? { ...q, status: 'canceled' as const } : q
+			);
+			setCurrentThread({ ...thread, questions: updatedQuestions });
+
+			// Persist to database
+			await services.updateQuestionStatus(qId, 'canceled');
+		},
+
+		// Cancel state
+		cancelState,
+		setCancelState,
+
+		// Mark last assistant message as canceled
+		markLastAssistantMessageCanceled: () => {
+			setMessageHistory((prev) => {
+				const newHistory = [...prev];
+				for (let i = newHistory.length - 1; i >= 0; i--) {
+					const msg = newHistory[i];
+					if (msg && msg.role === 'assistant') {
+						newHistory[i] = { ...msg, canceled: true };
+						break;
+					}
+				}
+				return newHistory;
+			});
+		}
 	};
 
 	return <AppContext.Provider value={state}>{props.children}</AppContext.Provider>;
