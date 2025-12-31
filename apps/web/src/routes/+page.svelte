@@ -4,7 +4,7 @@
 	import { getThemeStore } from '$lib/stores/ThemeStore.svelte';
 
 	const INSTALL_CMD = `bun add -g btca opencode-ai && btca`;
-	const Cursor_CMD = `curl "https://btca.dev/rules?rule=better_context" -o .cursor/rules/better_context.mdc`;
+	const CURSOR_CMD = `mkdir -p .cursor/rules && curl -fsSL "https://btca.dev/rules?rule=better_context" -o .cursor/rules/better_context.mdc && echo "Rule file created."`;
 
 	const ASK_CMD = `btca ask -t svelte -q "How do stores work in Svelte 5?"`;
 	const CHAT_CMD = `btca chat -t svelte`;
@@ -102,7 +102,7 @@
 			>
 				<div class="min-w-0 flex-1 overflow-x-auto">
 					{#if shikiStore.highlighter}
-						{@html shikiStore.highlighter.codeToHtml(Cursor_CMD, {
+						{@html shikiStore.highlighter.codeToHtml(CURSOR_CMD, {
 							theme: shikiTheme,
 							lang: 'bash',
 							rootStyle: 'background-color: transparent; padding: 0; margin: 0; height: 100%;'
@@ -110,11 +110,11 @@
 					{:else}
 						<pre
 							class="m-0 h-full whitespace-pre p-0 leading-relaxed text-neutral-900 dark:text-neutral-50"><code
-								>{Cursor_CMD}</code
+								>{CURSOR_CMD}</code
 							></pre>
 					{/if}
 				</div>
-				<CopyButton text={Cursor_CMD} label="Copy Cursor rule command" />
+				<CopyButton text={CURSOR_CMD} label="Copy Cursor rule command" />
 			</div>
 		</div>
 	</section>
