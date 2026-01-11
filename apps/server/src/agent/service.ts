@@ -3,7 +3,6 @@ import {
 	createOpencodeClient,
 	type Config as OpenCodeConfig,
 	type OpencodeClient,
-	type ProviderConfig,
 	type Event as OcEvent
 } from '@opencode-ai/sdk';
 
@@ -77,11 +76,9 @@ export namespace Agent {
 
 	const buildOpenCodeConfig = (args: { agentInstructions: string }): OpenCodeConfig => {
 		const prompt = [
-			'You are the btca server agent.',
+			'You are an expert internal agent who`s job is to answer questions about the collection.',
 			'You operate inside a collection directory.',
-			"Only use relative paths within '.' and never use '..' or absolute paths.",
-			'Do not leave the collection directory.',
-			'',
+			'Use the resources in this collection to answer the user`s question.',
 			args.agentInstructions
 		].join('\n');
 

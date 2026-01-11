@@ -48,7 +48,8 @@ export const askCommand = new Command('ask')
 		try {
 			const server = await ensureServer({
 				serverUrl: globalOpts?.server,
-				port: globalOpts?.port
+				port: globalOpts?.port,
+				quiet: true
 			});
 
 			const client = createClient(server.url);
@@ -75,7 +76,7 @@ export const askCommand = new Command('ask')
 				resourceNames.push(...resources.map((r) => r.name));
 			}
 
-			console.log(`Searching resources: ${resourceNames.join(', ')}\n`);
+			console.log('loading resources...');
 
 			// Stream the response
 			const response = await askQuestionStream(server.url, {
@@ -84,30 +85,42 @@ export const askCommand = new Command('ask')
 				quiet: true
 			});
 
-			let fullText = '';
+			let receivedMeta = false;
 			let inReasoning = false;
+			let hasText = false;
 
 			for await (const event of parseSSEStream(response)) {
 				handleStreamEvent(event, {
+					onMeta: () => {
+						if (!receivedMeta) {
+							console.log('creating collection...\n');
+							receivedMeta = true;
+						}
+					},
+					onReasoningDelta: (delta) => {
+						if (!inReasoning) {
+							process.stdout.write('<thinking>\n');
+							inReasoning = true;
+						}
+						process.stdout.write(delta);
+					},
 					onTextDelta: (delta) => {
 						if (inReasoning) {
 							process.stdout.write('\n</thinking>\n\n');
 							inReasoning = false;
 						}
-						process.stdout.write(delta);
-						fullText += delta;
-					},
-					onReasoningDelta: (delta) => {
-						if (!inReasoning) {
-							process.stdout.write('\n<thinking>\n');
-							inReasoning = true;
-						}
+						hasText = true;
 						process.stdout.write(delta);
 					},
-					onToolUpdated: (tool, state) => {
-						if (state === 'running') {
-							console.log(`\n[Tool: ${tool}]`);
+					onToolCall: (tool) => {
+						if (inReasoning) {
+							process.stdout.write('\n</thinking>\n\n');
+							inReasoning = false;
 						}
+						if (hasText) {
+							process.stdout.write('\n');
+						}
+						console.log(`[${tool}]`);
 					},
 					onError: (message) => {
 						console.error(`\nError: ${message}`);
@@ -128,29 +141,33 @@ export const askCommand = new Command('ask')
 	});
 
 interface StreamHandlers {
-	onTextDelta: (delta: string) => void;
-	onReasoningDelta: (delta: string) => void;
-	onToolUpdated: (tool: string, state: string) => void;
-	onError: (message: string) => void;
+	onMeta?: () => void;
+	onReasoningDelta?: (delta: string) => void;
+	onTextDelta?: (delta: string) => void;
+	onToolCall?: (tool: string) => void;
+	onError?: (message: string) => void;
 }
 
 function handleStreamEvent(event: BtcaStreamEvent, handlers: StreamHandlers): void {
 	switch (event.type) {
-		case 'text.delta':
-			handlers.onTextDelta(event.delta);
+		case 'meta':
+			handlers.onMeta?.();
 			break;
 		case 'reasoning.delta':
-			handlers.onReasoningDelta(event.delta);
+			handlers.onReasoningDelta?.(event.delta);
+			break;
+		case 'text.delta':
+			handlers.onTextDelta?.(event.delta);
 			break;
 		case 'tool.updated':
-			handlers.onToolUpdated(event.tool, event.state.status);
+			if (event.state.status === 'running') {
+				handlers.onToolCall?.(event.tool);
+			}
 			break;
 		case 'error':
-			handlers.onError(event.message);
+			handlers.onError?.(event.message);
 			break;
-		case 'meta':
 		case 'done':
-			// Informational, no action needed
 			break;
 	}
 }

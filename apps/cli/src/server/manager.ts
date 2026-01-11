@@ -9,6 +9,7 @@ export interface EnsureServerOptions {
 	serverUrl?: string;
 	port?: number;
 	timeout?: number;
+	quiet?: boolean;
 }
 
 const DEFAULT_TIMEOUT = 10000;
@@ -66,7 +67,7 @@ export async function ensureServer(options: EnsureServerOptions = {}): Promise<S
 
 	let server: ServerInstance;
 	try {
-		server = await startServer({ port });
+		server = await startServer({ port, quiet: options.quiet });
 	} catch (error) {
 		throw new Error(`Failed to start server: ${error}`);
 	}

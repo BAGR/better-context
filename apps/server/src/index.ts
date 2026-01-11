@@ -280,6 +280,7 @@ export interface ServerInstance {
 
 export interface StartServerOptions {
 	port?: number;
+	quiet?: boolean;
 }
 
 /**
@@ -289,6 +290,10 @@ export interface StartServerOptions {
  * If port is 0, a random available port will be assigned by the OS.
  */
 export const startServer = async (options: StartServerOptions = {}): Promise<ServerInstance> => {
+	if (options.quiet) {
+		Metrics.setQuiet(true);
+	}
+
 	const requestedPort = options.port ?? PORT;
 	Metrics.info('server.starting', { port: requestedPort });
 

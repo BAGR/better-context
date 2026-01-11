@@ -3,8 +3,16 @@ import { getErrorMessage, getErrorTag } from '../errors.ts';
 
 type LogLevel = 'info' | 'error';
 
+let quietMode = false;
+
 export namespace Metrics {
 	export type Fields = Record<string, unknown>;
+
+	export const setQuiet = (quiet: boolean) => {
+		quietMode = quiet;
+	};
+
+	export const isQuiet = () => quietMode;
 
 	export const errorInfo = (cause: unknown) => ({
 		tag: getErrorTag(cause),
@@ -12,6 +20,8 @@ export namespace Metrics {
 	});
 
 	const emit = (level: LogLevel, event: string, fields?: Fields) => {
+		if (quietMode) return;
+
 		const payload = {
 			ts: new Date().toISOString(),
 			level,

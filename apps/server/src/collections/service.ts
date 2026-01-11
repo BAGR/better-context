@@ -88,18 +88,11 @@ export namespace Collections {
 						}
 					}
 
-					const headerBlock = [
-						'## Collection',
-						'You are running inside the collection directory.',
-						"Only use relative paths within '.' and never use '..' or absolute paths.",
-						'Do not leave the collection directory.'
-					].join('\n');
-
 					const instructionBlocks = loadedResources.map(createCollectionInstructionBlock);
 
 					return {
 						path: collectionPath,
-						agentInstructions: [headerBlock, ...instructionBlocks].join('\n\n')
+						agentInstructions: instructionBlocks.join('\n\n')
 					};
 				})
 		};
