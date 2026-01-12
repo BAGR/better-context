@@ -458,6 +458,9 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Ser
 	};
 };
 
+// Export all public types and interfaces for consumers
+export type { BtcaStreamEvent, BtcaStreamMetaEvent } from './stream/types.ts';
+
 // Auto-start when run directly (not imported)
 const isMainModule = import.meta.main;
 if (isMainModule) {

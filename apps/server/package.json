@@ -1,14 +1,38 @@
 {
 	"name": "@btca/server",
-	"version": "0.0.1",
+	"version": "1.0.0",
+	"description": "BTCA server for answering questions about your codebase using OpenCode AI",
+	"author": "Ben Davis",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/bmdavis419/better-context",
+		"directory": "apps/server"
+	},
+	"keywords": [
+		"btca",
+		"opencode",
+		"ai",
+		"codebase",
+		"documentation",
+		"server",
+		"api",
+		"bun"
+	],
+	"engines": {
+		"bun": ">=1.1.0"
+	},
 	"module": "src/index.ts",
 	"type": "module",
-	"private": true,
 	"exports": {
 		".": "./src/index.ts",
 		"./stream": "./src/stream/index.ts",
 		"./stream/types": "./src/stream/types.ts"
 	},
+	"files": [
+		"src",
+		"README.md"
+	],
 	"scripts": {
 		"check": "tsgo --noEmit",
 		"dev": "bun --watch src/index.ts",

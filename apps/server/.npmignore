@@ -1,0 +1,12 @@
+# Test files
+*.test.ts
+**/*.test.ts
+
+# Development files
+.turbo
+node_modules
+tsconfig.json
+
+# Config files
+.prettierrc
+.prettierignore
