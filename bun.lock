@@ -20,11 +20,11 @@
         "btca": "bin.js",
       },
       "dependencies": {
+        "@btca/server": "workspace:*",
         "commander": "^12.1.0",
         "hono": "^4.7.11",
       },
       "devDependencies": {
-        "@btca/server": "workspace:*",
         "@opentui/core": "^0.1.65",
         "@opentui/solid": "^0.1.65",
         "@shikijs/langs": "^3.20.0",
