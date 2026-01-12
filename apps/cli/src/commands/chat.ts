@@ -40,8 +40,8 @@ export const chatCommand = new Command('chat')
 
 			console.log(`Starting OpenCode TUI (${model.provider}/${model.model})...\n`);
 
-			// Spawn opencode CLI with the server URL
-			const proc = spawn(['opencode', '--connect', opencodeUrl], {
+		// Spawn opencode CLI and attach to the server URL
+		const proc = spawn(['opencode', 'attach', opencodeUrl], {
 				stdin: 'inherit',
 				stdout: 'inherit',
 				stderr: 'inherit'
