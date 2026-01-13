@@ -187,6 +187,7 @@ const createApp = (deps: {
 			const message = getErrorMessage(err);
 			const hint = getErrorHint(err);
 			const status =
+				tag === 'RequestError' ||
 				tag === 'CollectionError' ||
 				tag === 'ResourceError' ||
 				tag === 'ConfigError' ||
