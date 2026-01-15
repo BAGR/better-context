@@ -54,7 +54,7 @@ const StoredConfigSchema = z.object({
 	provider: z.string()
 });
 
-	type StoredConfig = z.infer<typeof StoredConfigSchema>;
+type StoredConfig = z.infer<typeof StoredConfigSchema>;
 
 // Legacy config schemas (btca.json format from old CLI)
 // There are two legacy formats:
@@ -687,7 +687,7 @@ export namespace Config {
 		const projectExists = await Bun.file(projectConfigPath).exists();
 		if (projectExists) {
 			Metrics.info('config.load.project', { source: 'project', path: projectConfigPath });
-			const projectConfig = await loadConfigFromPath(projectConfigPath);
+			let projectConfig = await loadConfigFromPath(projectConfigPath);
 
 			Metrics.info('config.load.merged', {
 				globalResources: globalConfig.resources.length,
@@ -696,10 +696,28 @@ export namespace Config {
 
 			// Use project paths for data storage when project config exists
 			// Pass both configs separately to avoid resource leakage on mutations
-			const projectDataDir =
-				projectConfig.dataDirectory ??
-				globalConfig.dataDirectory ??
-				expandHome(GLOBAL_DATA_DIR);
+			let projectDataDir =
+				projectConfig.dataDirectory ?? globalConfig.dataDirectory ?? expandHome(GLOBAL_DATA_DIR);
+
+			// Migration: if no dataDirectory is set and legacy .btca exists, use it and update config
+			if (!projectConfig.dataDirectory) {
+				const legacyProjectDataDir = `${cwd}/.btca`;
+				const legacyExists = await fs
+					.stat(legacyProjectDataDir)
+					.then(() => true)
+					.catch(() => false);
+				if (legacyExists) {
+					Metrics.info('config.project.legacy_data_dir', {
+						path: legacyProjectDataDir,
+						action: 'migrating'
+					});
+					projectDataDir = '.btca';
+					const updatedProjectConfig = { ...projectConfig, dataDirectory: '.btca' };
+					await saveConfig(projectConfigPath, updatedProjectConfig);
+					projectConfig = updatedProjectConfig;
+				}
+			}
+
 			const resolvedProjectDataDir = resolveDataDirectory(projectDataDir, cwd);
 			return makeService(
 				globalConfig,
@@ -712,9 +730,11 @@ export namespace Config {
 
 		// No project config, use global only
 		Metrics.info('config.load.source', { source: 'global', path: globalConfigPath });
-		const globalDataDir =
-			globalConfig.dataDirectory ?? expandHome(GLOBAL_DATA_DIR);
-		const resolvedGlobalDataDir = resolveDataDirectory(globalDataDir, expandHome(GLOBAL_CONFIG_DIR));
+		const globalDataDir = globalConfig.dataDirectory ?? expandHome(GLOBAL_DATA_DIR);
+		const resolvedGlobalDataDir = resolveDataDirectory(
+			globalDataDir,
+			expandHome(GLOBAL_CONFIG_DIR)
+		);
 		return makeService(
 			globalConfig,
 			null,
